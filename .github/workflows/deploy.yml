@@ -43,6 +43,21 @@ jobs:
           gcloud config set project "${PROJECT_ID}"
           gcloud config set run/region "${REGION}"
 
+      - name: Validate secrets
+        run: |
+          if [ -z "${{ secrets.BOT_TOKEN }}" ]; then
+            echo "BOT_TOKEN secret is not set." >&2
+            exit 1
+          fi
+          if [ -z "${{ secrets.OPENAI_API_KEY }}" ]; then
+            echo "OPENAI_API_KEY secret is not set." >&2
+            exit 1
+          fi
+          if [ -z "${{ secrets.ADMIN_ID }}" ]; then
+            echo "ADMIN_ID secret is not set." >&2
+            exit 1
+          fi
+
       - name: Configure Docker auth
         run: gcloud auth configure-docker --quiet
 
