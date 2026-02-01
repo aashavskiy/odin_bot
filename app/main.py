@@ -15,7 +15,7 @@ from app.services.openai_client import OpenAIClient
 
 
 async def on_startup(bot: Bot, webhook_url: str) -> None:
-    await bot.set_webhook(webhook_url)
+    await bot.set_webhook(webhook_url, drop_pending_updates=True)
 
 
 async def on_shutdown(bot: Bot) -> None:
