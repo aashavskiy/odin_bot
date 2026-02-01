@@ -27,6 +27,16 @@ Optional (for webhooks):
 - `WEBHOOK_BASE` (e.g., `https://your-service-xyz.a.run.app`)
 - `WEBHOOK_PATH` (default: `/webhook`)
 
+Example `.env`:
+```bash
+BOT_TOKEN=
+OPENAI_API_KEY=
+GCP_PROJECT_ID=
+ADMIN_ID=100013433
+WEBHOOK_BASE=
+WEBHOOK_PATH=/webhook
+```
+
 ## Local Development
 ```bash
 python -m venv .venv
@@ -40,6 +50,8 @@ export BOT_TOKEN=... \
   WEBHOOK_BASE=https://your-ngrok-url
 python -m app.main
 ```
+
+Note: The bot runs only in webhook mode. If `WEBHOOK_BASE` is not set, the bot will not receive updates.
 
 ## Firestore Setup (2026)
 1. In **Google Cloud Console**, create or select a project.
@@ -60,11 +72,17 @@ This repo includes `.github/workflows/deploy.yml` to deploy on every push to `ma
 ### Required GitHub Secrets
 - `GCP_SA_KEY`: service account JSON with Cloud Run + Cloud Build permissions.
 - `GCP_PROJECT_ID`: GCP project ID.
-- `GCP_REGION`: e.g. `us-central1`.
+- `GCP_REGION`: e.g. `us-central1` (make sure it's a valid GCP region).
 - `BOT_TOKEN`: Telegram bot token.
 - `OPENAI_API_KEY`: OpenAI API key.
 - `ADMIN_ID`: `100013433`.
 - `WEBHOOK_BASE`: Cloud Run URL (after first deploy).
+
+### First deploy + webhook
+1. First push to `main` triggers deploy (without `WEBHOOK_BASE`).
+2. Copy the Cloud Run service URL.
+3. Set `WEBHOOK_BASE` to that URL in GitHub Secrets.
+4. Re-run the workflow or push again to apply the webhook.
 
 ## Testing
 ```bash
@@ -78,10 +96,10 @@ Tests use `pytest-asyncio` and mocks for:
 
 ## Cloud Run Deployment (Manual)
 ```bash
-gcloud builds submit --tag gcr.io/$GCP_PROJECT_ID/odin-bot
+gcloud builds submit --tag gcr.io/$GCP_PROJECT_ID/odin-gatekeeper
 
-gcloud run deploy odin-bot \
-  --image gcr.io/$GCP_PROJECT_ID/odin-bot \
+gcloud run deploy odin-gatekeeper \
+  --image gcr.io/$GCP_PROJECT_ID/odin-gatekeeper \
   --region $GCP_REGION \
   --platform managed \
   --allow-unauthenticated \

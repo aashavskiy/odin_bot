@@ -5,7 +5,7 @@ on:
     branches: ["main"]
 
 env:
-  SERVICE_NAME: odin-bot
+  SERVICE_NAME: odin-gatekeeper
 
 jobs:
   build-and-deploy:
