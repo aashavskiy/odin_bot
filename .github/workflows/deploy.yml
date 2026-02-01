@@ -54,7 +54,19 @@ jobs:
             echo "Cloud Build did not return a build ID." >&2
             exit 1
           fi
-          gcloud builds wait "${BUILD_ID}"
+          for i in {1..120}; do
+            STATUS="$(gcloud builds describe "${BUILD_ID}" --format="value(status)")"
+            echo "Cloud Build status: ${STATUS}"
+            if [ "${STATUS}" = "SUCCESS" ]; then
+              exit 0
+            fi
+            if [ "${STATUS}" = "FAILURE" ] || [ "${STATUS}" = "CANCELLED" ] || [ "${STATUS}" = "TIMEOUT" ]; then
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "Timed out waiting for Cloud Build to complete." >&2
+          exit 1
 
       - name: Deploy to Cloud Run
         run: |
