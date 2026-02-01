@@ -19,7 +19,7 @@ async def on_startup(bot: Bot, webhook_url: str) -> None:
 
 
 async def on_shutdown(bot: Bot) -> None:
-    await bot.delete_webhook(drop_pending_updates=True)
+    return
 
 
 def build_webhook_url(base: str, path: str) -> str:
