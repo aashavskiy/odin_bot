@@ -16,6 +16,9 @@ class AppContext:
     bot_username: str | None
     openai_client: object
     firestore_client: object
+    history_max_messages: int
+    summary_trigger: int
+    history_ttl_days: int
 
 
 router = Router()
@@ -40,7 +43,9 @@ async def handle_message(message: Message, context: AppContext) -> None:
         return
 
     user_id = message.from_user.id if message.from_user else 0
-    history = context.firestore_client.get_recent_history(user_id)
+    history = context.firestore_client.get_recent_history(
+        user_id, max_messages=context.history_max_messages
+    )
     history.append({"role": "user", "content": message.text or ""})
 
     try:
@@ -51,6 +56,14 @@ async def handle_message(message: Message, context: AppContext) -> None:
         return
     context.firestore_client.append_message(user_id, "user", message.text or "")
     context.firestore_client.append_message(user_id, "assistant", reply)
+    if hasattr(context.firestore_client, "compact"):
+        await context.firestore_client.compact(
+            user_id,
+            max_messages=context.history_max_messages,
+            summary_trigger=context.summary_trigger,
+            ttl_hours=context.history_ttl_days * 24,
+            summarize_fn=context.openai_client.summarize_history,
+        )
 
     await message.answer(reply)
 

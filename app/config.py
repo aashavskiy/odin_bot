@@ -13,6 +13,9 @@ class Config:
     webhook_path: str
     firestore_enabled: bool
     gcp_project_id: str | None
+    history_max_messages: int
+    summary_trigger: int
+    history_ttl_days: int
 
 
 def load_config() -> Config:
@@ -25,6 +28,9 @@ def load_config() -> Config:
         "yes",
     }
     gcp_project_id = os.getenv("GCP_PROJECT_ID", "").strip()
+    history_max_messages = int(os.getenv("HISTORY_MAX_MESSAGES", "16"))
+    summary_trigger = int(os.getenv("SUMMARY_TRIGGER", "20"))
+    history_ttl_days = int(os.getenv("HISTORY_TTL_DAYS", "7"))
 
     if not bot_token or not openai_api_key or not admin_id_raw:
         raise RuntimeError(
@@ -49,4 +55,7 @@ def load_config() -> Config:
         webhook_path=webhook_path,
         firestore_enabled=firestore_enabled,
         gcp_project_id=gcp_project_id or None,
+        history_max_messages=history_max_messages,
+        summary_trigger=summary_trigger,
+        history_ttl_days=history_ttl_days,
     )

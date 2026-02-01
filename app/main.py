@@ -50,6 +50,9 @@ def create_app() -> web.Application:
             bot_username=bot_user.username,
             openai_client=openai_client,
             firestore_client=firestore_client,
+            history_max_messages=config.history_max_messages,
+            summary_trigger=config.summary_trigger,
+            history_ttl_days=config.history_ttl_days,
         )
 
     async def middleware(handler, event, data):
