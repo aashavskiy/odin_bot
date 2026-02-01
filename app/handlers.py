@@ -67,6 +67,13 @@ async def handle_message(message: Message, context: AppContext) -> None:
         )
 
     await message.answer(reply)
+    logger.info(
+        "message_answered chat_id=%s sender_id=%s chat_type=%s reply_len=%s",
+        message.chat.id if message.chat else None,
+        sender_id,
+        chat_type,
+        len(reply),
+    )
 
 
 @router.my_chat_member()
