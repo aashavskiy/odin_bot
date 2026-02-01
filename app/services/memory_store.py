@@ -34,8 +34,8 @@ class MemoryStore:
                 history.append({"role": "system", "content": summary["content"]})
             history.extend(
                 [
-                {"role": msg["role"], "content": msg["content"]}
-                for msg in self._messages.get(user_id, [])[-max_messages:]
+                    {"role": msg["role"], "content": msg["content"]}
+                    for msg in self._messages.get(user_id, [])[-max_messages:]
                 ]
             )
             return history
@@ -65,7 +65,6 @@ class MemoryStore:
                 "content": summary,
                 "expires_at": expires_at,
             }
-            ]
 
     def _prune_locked(self, user_id: int) -> None:
         cutoff = datetime.now(timezone.utc) - timedelta(hours=self.ttl_hours)
