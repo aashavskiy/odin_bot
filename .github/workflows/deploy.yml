@@ -10,6 +10,9 @@ env:
   REGION: ${{ vars.GCP_REGION || secrets.GCP_REGION }}
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}
   WEBHOOK_BASE: ${{ vars.WEBHOOK_BASE || secrets.WEBHOOK_BASE }}
+  BOT_TOKEN: ${{ vars.BOT_TOKEN || secrets.BOT_TOKEN }}
+  OPENAI_API_KEY: ${{ vars.OPENAI_API_KEY || secrets.OPENAI_API_KEY }}
+  ADMIN_ID: ${{ vars.ADMIN_ID || secrets.ADMIN_ID }}
 
 jobs:
   deploy:
@@ -45,16 +48,16 @@ jobs:
 
       - name: Validate secrets
         run: |
-          if [ -z "${{ secrets.BOT_TOKEN }}" ]; then
-            echo "BOT_TOKEN secret is not set." >&2
+          if [ -z "${BOT_TOKEN}" ]; then
+            echo "BOT_TOKEN is not set (vars or secrets)." >&2
             exit 1
           fi
-          if [ -z "${{ secrets.OPENAI_API_KEY }}" ]; then
-            echo "OPENAI_API_KEY secret is not set." >&2
+          if [ -z "${OPENAI_API_KEY}" ]; then
+            echo "OPENAI_API_KEY is not set (vars or secrets)." >&2
             exit 1
           fi
-          if [ -z "${{ secrets.ADMIN_ID }}" ]; then
-            echo "ADMIN_ID secret is not set." >&2
+          if [ -z "${ADMIN_ID}" ]; then
+            echo "ADMIN_ID is not set (vars or secrets)." >&2
             exit 1
           fi
 
@@ -86,7 +89,7 @@ jobs:
       - name: Deploy to Cloud Run
         run: |
           IMAGE="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
-          ENV_VARS="BOT_TOKEN=${{ secrets.BOT_TOKEN }},OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},GCP_PROJECT_ID=${PROJECT_ID},ADMIN_ID=${{ secrets.ADMIN_ID }},WEBHOOK_PATH=/webhook"
+          ENV_VARS="BOT_TOKEN=${BOT_TOKEN},OPENAI_API_KEY=${OPENAI_API_KEY},GCP_PROJECT_ID=${PROJECT_ID},ADMIN_ID=${ADMIN_ID},WEBHOOK_PATH=/webhook"
           if [ -n "${WEBHOOK_BASE}" ]; then
             ENV_VARS="${ENV_VARS},WEBHOOK_BASE=${WEBHOOK_BASE}"
           fi
