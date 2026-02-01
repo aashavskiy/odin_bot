@@ -93,6 +93,7 @@ jobs:
           if [ -n "${WEBHOOK_BASE}" ]; then
             ENV_VARS="${ENV_VARS},WEBHOOK_BASE=${WEBHOOK_BASE}"
           fi
+          ENV_VARS="${ENV_VARS},FIRESTORE_DISABLED=1"
           gcloud run deploy "${SERVICE_NAME}" \
             --image "${IMAGE}" \
             --region "${REGION}" \

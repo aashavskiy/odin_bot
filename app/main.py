@@ -10,6 +10,7 @@ from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_applicati
 from app.config import load_config
 from app.handlers import AppContext, router
 from app.services.firestore_client import FirestoreClient
+from app.services.memory_store import MemoryStore
 from app.services.openai_client import OpenAIClient
 
 
@@ -37,7 +38,10 @@ def create_app() -> web.Application:
     dispatcher.include_router(router)
 
     openai_client = OpenAIClient(api_key=config.openai_api_key)
-    firestore_client = FirestoreClient(project_id=config.gcp_project_id)
+    if config.firestore_enabled:
+        firestore_client = FirestoreClient(project_id=config.gcp_project_id or "")
+    else:
+        firestore_client = MemoryStore()
 
     async def build_context() -> AppContext:
         bot_user = await bot.get_me()
