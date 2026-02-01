@@ -29,6 +29,14 @@ jobs:
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Configure default region
+        run: |
+          if [ -z "${REGION}" ]; then
+            echo "GCP_REGION is not set. Define repo variable GCP_REGION (e.g. us-central1)." >&2
+            exit 1
+          fi
+          gcloud config set run/region "${REGION}"
+
       - name: Configure Docker auth
         run: gcloud auth configure-docker --quiet
 
