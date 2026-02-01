@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 
 from aiogram import Router
 from aiogram.enums import ChatMemberStatus
@@ -18,11 +19,24 @@ class AppContext:
 
 
 router = Router()
+logger = logging.getLogger(__name__)
 
 
 @router.message()
 async def handle_message(message: Message, context: AppContext) -> None:
-    if not should_respond(message, context.bot_username, context.admin_id):
+    sender_id = message.from_user.id if message.from_user else None
+    chat_type = message.chat.type if message.chat else "unknown"
+    text_preview = (message.text or "")[:200]
+    will_respond = should_respond(message, context.bot_username, context.admin_id)
+    logger.info(
+        "message_received sender_id=%s admin_id=%s chat_type=%s will_respond=%s text_preview=%r",
+        sender_id,
+        context.admin_id,
+        chat_type,
+        will_respond,
+        text_preview,
+    )
+    if not will_respond:
         return
 
     user_id = message.from_user.id if message.from_user else 0
