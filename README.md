@@ -3,10 +3,11 @@
 Production-ready Telegram bot for a single administrator user.
 
 ## Features
-- **Strict access control**: only admin ID `100013433` receives responses.
+- **Strict access control**: only configured admin ID receives responses.
 - **Group safety**: bot auto-leaves groups added by anyone else via `on_my_chat_member`.
 - **Group interaction rules**: admin must @mention or reply to the bot in groups.
-- **24-hour memory**: conversation history stored in Firestore with TTL-ready `expires_at`.
+- **Conversation memory**: history stored in Firestore (or in-memory when disabled), with TTL-ready `expires_at`.
+- **History compaction**: keeps last N messages plus a rolling summary.
 - **Cloud Run ready**: webhook server on port `8080`.
 
 ## Architecture
@@ -20,21 +21,31 @@ Production-ready Telegram bot for a single administrator user.
 Required:
 - `BOT_TOKEN`
 - `OPENAI_API_KEY`
-- `GCP_PROJECT_ID`
-- `ADMIN_ID` (set to `100013433`)
+- `ADMIN_ID`
 
-Optional (for webhooks):
+Required when Firestore is enabled:
+- `GCP_PROJECT_ID`
+
+Optional (webhook + history tuning):
 - `WEBHOOK_BASE` (e.g., `https://your-service-xyz.a.run.app`)
 - `WEBHOOK_PATH` (default: `/webhook`)
+- `FIRESTORE_DISABLED` (set to `1`/`true`/`yes` to use in-memory storage)
+- `HISTORY_MAX_MESSAGES` (default: `16`)
+- `SUMMARY_TRIGGER` (default: `20`)
+- `HISTORY_TTL_DAYS` (default: `7`)
 
 Example `.env`:
 ```bash
 BOT_TOKEN=
 OPENAI_API_KEY=
+ADMIN_ID=
 GCP_PROJECT_ID=
-ADMIN_ID=100013433
 WEBHOOK_BASE=
 WEBHOOK_PATH=/webhook
+FIRESTORE_DISABLED=0
+HISTORY_MAX_MESSAGES=16
+SUMMARY_TRIGGER=20
+HISTORY_TTL_DAYS=7
 ```
 
 ## Local Development
@@ -45,13 +56,13 @@ pip install -r requirements.txt
 pip install -r requirements-dev.txt
 export BOT_TOKEN=... \
   OPENAI_API_KEY=... \
+  ADMIN_ID=... \
   GCP_PROJECT_ID=... \
-  ADMIN_ID=100013433 \
   WEBHOOK_BASE=https://your-ngrok-url
 python -m app.main
 ```
 
-Note: The bot runs only in webhook mode. If `WEBHOOK_BASE` is not set, the bot will not receive updates.
+Note: The bot runs only in webhook mode. If `WEBHOOK_BASE` is not set, you must set the webhook externally.
 
 ## Firestore Setup (2026)
 1. In **Google Cloud Console**, create or select a project.
@@ -59,6 +70,7 @@ Note: The bot runs only in webhook mode. If `WEBHOOK_BASE` is not set, the bot w
 3. Create a **TTL policy** on the `expires_at` field:
    - Navigate to **Firestore > TTL**.
    - Add a policy for collection group `messages` and field `expires_at`.
+   - Add a policy for collection group `summaries` and field `expires_at`.
 4. Ensure Cloud Run service account has `roles/datastore.user`.
 
 ## OpenAI Setup
@@ -75,8 +87,8 @@ This repo includes `.github/workflows/deploy.yml` to deploy on every push to `ma
 - `GCP_REGION`: e.g. `us-central1` (make sure it's a valid GCP region).
 - `BOT_TOKEN`: Telegram bot token.
 - `OPENAI_API_KEY`: OpenAI API key.
-- `ADMIN_ID`: `100013433`.
-- `WEBHOOK_BASE`: Cloud Run URL (after first deploy).
+- `ADMIN_ID`: Telegram admin user id.
+- `WEBHOOK_BASE`: Cloud Run URL (after first deploy, optional if you set webhook manually).
 
 ### First deploy + webhook
 1. First push to `main` triggers deploy (without `WEBHOOK_BASE`).
@@ -92,16 +104,17 @@ pytest
 Tests use `pytest-asyncio` and mocks for:
 - Telegram API calls
 - OpenAI API responses
-- Firestore CRUD
+- Access control rules
+- Memory store compaction/TTL
 
 ## Cloud Run Deployment (Manual)
 ```bash
-gcloud builds submit --tag gcr.io/$GCP_PROJECT_ID/odin-gatekeeper
+gcloud builds submit --tag gcr.io/$GCP_PROJECT_ID/odin-bot
 
-gcloud run deploy odin-gatekeeper \
-  --image gcr.io/$GCP_PROJECT_ID/odin-gatekeeper \
+gcloud run deploy odin-bot \
+  --image gcr.io/$GCP_PROJECT_ID/odin-bot \
   --region $GCP_REGION \
   --platform managed \
   --allow-unauthenticated \
-  --set-env-vars BOT_TOKEN=$BOT_TOKEN,OPENAI_API_KEY=$OPENAI_API_KEY,GCP_PROJECT_ID=$GCP_PROJECT_ID,ADMIN_ID=$ADMIN_ID,WEBHOOK_BASE=$WEBHOOK_BASE,WEBHOOK_PATH=/webhook
+  --set-env-vars BOT_TOKEN=$BOT_TOKEN,OPENAI_API_KEY=$OPENAI_API_KEY,GCP_PROJECT_ID=$GCP_PROJECT_ID,ADMIN_ID=$ADMIN_ID,WEBHOOK_BASE=$WEBHOOK_BASE,WEBHOOK_PATH=/webhook,FIRESTORE_DISABLED=$FIRESTORE_DISABLED,HISTORY_MAX_MESSAGES=$HISTORY_MAX_MESSAGES,SUMMARY_TRIGGER=$SUMMARY_TRIGGER,HISTORY_TTL_DAYS=$HISTORY_TTL_DAYS
 ```
