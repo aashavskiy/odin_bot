@@ -7,8 +7,9 @@ on:
 
 env:
   SERVICE_NAME: odin-bot
-  REGION: ${{ vars.GCP_REGION }}
-  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: ${{ vars.GCP_REGION || secrets.GCP_REGION }}
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}
+  WEBHOOK_BASE: ${{ vars.WEBHOOK_BASE || secrets.WEBHOOK_BASE }}
 
 jobs:
   deploy:
@@ -35,6 +36,11 @@ jobs:
             echo "GCP_REGION is not set. Define repo variable GCP_REGION (e.g. us-central1)." >&2
             exit 1
           fi
+          if [ -z "${PROJECT_ID}" ]; then
+            echo "GCP_PROJECT_ID is not set. Define repo variable GCP_PROJECT_ID." >&2
+            exit 1
+          fi
+          gcloud config set project "${PROJECT_ID}"
           gcloud config set run/region "${REGION}"
 
       - name: Configure Docker auth
@@ -43,15 +49,18 @@ jobs:
       - name: Build and push image
         run: |
           IMAGE="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
-          # Use async to avoid log streaming permissions in CI
-          gcloud builds submit --async --tag "${IMAGE}"
+          gcloud builds submit --tag "${IMAGE}"
 
       - name: Deploy to Cloud Run
         run: |
           IMAGE="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
+          ENV_VARS="BOT_TOKEN=${{ secrets.BOT_TOKEN }},OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},GCP_PROJECT_ID=${PROJECT_ID},ADMIN_ID=${{ secrets.ADMIN_ID }},WEBHOOK_PATH=/webhook"
+          if [ -n "${WEBHOOK_BASE}" ]; then
+            ENV_VARS="${ENV_VARS},WEBHOOK_BASE=${WEBHOOK_BASE}"
+          fi
           gcloud run deploy "${SERVICE_NAME}" \
             --image "${IMAGE}" \
             --region "${REGION}" \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars BOT_TOKEN=${{ secrets.BOT_TOKEN }},OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }},ADMIN_ID=${{ secrets.ADMIN_ID }},WEBHOOK_BASE=${{ vars.WEBHOOK_BASE }},WEBHOOK_PATH=/webhook
+            --set-env-vars "${ENV_VARS}"
