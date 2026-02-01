@@ -29,7 +29,8 @@ logger = logging.getLogger(__name__)
 async def handle_message(message: Message, context: AppContext) -> None:
     sender_id = message.from_user.id if message.from_user else None
     chat_type = message.chat.type if message.chat else "unknown"
-    text_preview = (message.text or "")[:200]
+    message_text = message.text or message.caption or ""
+    text_preview = message_text[:200]
     will_respond = should_respond(message, context.bot_username, context.admin_id)
     logger.info(
         "message_received sender_id=%s admin_id=%s chat_type=%s will_respond=%s text_preview=%r",
@@ -46,7 +47,7 @@ async def handle_message(message: Message, context: AppContext) -> None:
     history = context.firestore_client.get_recent_history(
         user_id, max_messages=context.history_max_messages
     )
-    history.append({"role": "user", "content": message.text or ""})
+    history.append({"role": "user", "content": message_text})
 
     try:
         reply = await context.openai_client.generate_reply(history)
@@ -54,7 +55,7 @@ async def handle_message(message: Message, context: AppContext) -> None:
         logger.exception("generate_reply_failed sender_id=%s", sender_id)
         await message.answer("Temporary error talking to OpenAI. Please try again.")
         return
-    context.firestore_client.append_message(user_id, "user", message.text or "")
+    context.firestore_client.append_message(user_id, "user", message_text)
     context.firestore_client.append_message(user_id, "assistant", reply)
     if hasattr(context.firestore_client, "compact"):
         await context.firestore_client.compact(

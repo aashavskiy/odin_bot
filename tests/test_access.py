@@ -3,7 +3,15 @@ from types import SimpleNamespace
 from app.access import should_leave_chat, should_respond
 
 
-def make_message(*, sender_id: int, chat_type: str, text: str | None, bot_username: str | None, reply: bool = False):
+def make_message(
+    *,
+    sender_id: int,
+    chat_type: str,
+    text: str | None,
+    bot_username: str | None,
+    reply: bool = False,
+    caption: str | None = None,
+):
     reply_to = None
     if reply:
         reply_to = SimpleNamespace(from_user=SimpleNamespace(id=999, username=bot_username))
@@ -11,6 +19,7 @@ def make_message(*, sender_id: int, chat_type: str, text: str | None, bot_userna
         from_user=SimpleNamespace(id=sender_id, username="user"),
         chat=SimpleNamespace(id=1, type=chat_type),
         text=text,
+        caption=caption,
         reply_to_message=reply_to,
     )
 
@@ -42,6 +51,17 @@ def test_should_respond_group_admin_with_reply():
         text="reply",
         bot_username="mybot",
         reply=True,
+    )
+    assert should_respond(message, "mybot", 100013433) is True
+
+
+def test_should_respond_group_admin_with_caption_mention():
+    message = make_message(
+        sender_id=100013433,
+        chat_type="group",
+        text=None,
+        caption="@mybot hello",
+        bot_username="mybot",
     )
     assert should_respond(message, "mybot", 100013433) is True
 

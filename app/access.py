@@ -17,6 +17,7 @@ class MessageLike(Protocol):
     from_user: UserLike | None
     chat: ChatLike
     text: str | None
+    caption: str | None
     reply_to_message: "MessageLike | None"
 
 
@@ -52,8 +53,10 @@ def should_respond(message: MessageLike, bot_username: str | None, admin_id: int
         return False
 
     if is_group_chat(message.chat.type):
-        return is_mention(message.text, bot_username) or is_reply_to_bot(
-            message, bot_username
+        return (
+            is_mention(message.text, bot_username)
+            or is_mention(message.caption, bot_username)
+            or is_reply_to_bot(message, bot_username)
         )
 
     return True

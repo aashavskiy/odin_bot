@@ -13,6 +13,7 @@ async def test_handle_message_uses_openai_and_firestore():
         from_user=SimpleNamespace(id=100013433, username="admin"),
         chat=SimpleNamespace(id=1, type="private"),
         text="Hello",
+        caption=None,
         reply_to_message=None,
         answer=AsyncMock(),
     )
@@ -68,6 +69,7 @@ async def test_handle_message_openai_error_sends_fallback():
         from_user=SimpleNamespace(id=100013433, username="admin"),
         chat=SimpleNamespace(id=1, type="private"),
         text="Hello",
+        caption=None,
         reply_to_message=None,
         answer=AsyncMock(),
     )
@@ -98,6 +100,7 @@ async def test_handle_message_compacts_when_available():
         from_user=SimpleNamespace(id=100013433, username="admin"),
         chat=SimpleNamespace(id=1, type="private"),
         text="Hello",
+        caption=None,
         reply_to_message=None,
         answer=AsyncMock(),
     )
