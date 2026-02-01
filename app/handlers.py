@@ -43,7 +43,12 @@ async def handle_message(message: Message, context: AppContext) -> None:
     history = context.firestore_client.get_recent_history(user_id)
     history.append({"role": "user", "content": message.text or ""})
 
-    reply = await context.openai_client.generate_reply(history)
+    try:
+        reply = await context.openai_client.generate_reply(history)
+    except Exception:
+        logger.exception("generate_reply_failed sender_id=%s", sender_id)
+        await message.answer("Temporary error talking to OpenAI. Please try again.")
+        return
     context.firestore_client.append_message(user_id, "user", message.text or "")
     context.firestore_client.append_message(user_id, "assistant", reply)
 
