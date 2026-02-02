@@ -45,7 +45,7 @@ class OpenAIClient:
 
     async def generate_reply(
         self, messages: list[dict[str, str]], user_text: str | None = None
-    ) -> tuple[str, str]:
+    ) -> tuple[str, str, str | None]:
         client = self._client()
         model = self.model
         reasoning_effort = self._choose_reasoning_effort(user_text, messages)
@@ -59,14 +59,14 @@ class OpenAIClient:
                 **extra_args,
             )
             content = response.output_text
-            return content.strip(), model
+            return content.strip(), model, reasoning_effort
         except AttributeError:
             response = await client.chat.completions.create(
                 model=model,
                 messages=messages,
             )
             content = response.choices[0].message.content or ""
-            return content.strip(), model
+            return content.strip(), model, None
         except Exception:
             self._logger.exception("OpenAI request failed")
             raise
