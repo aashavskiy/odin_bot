@@ -9,13 +9,14 @@ from app.handlers import AppContext, handle_message, handle_my_chat_member
 
 @pytest.mark.asyncio
 async def test_handle_message_uses_openai_and_firestore():
+    pending = SimpleNamespace(edit_text=AsyncMock())
     message = SimpleNamespace(
         from_user=SimpleNamespace(id=100013433, username="admin"),
         chat=SimpleNamespace(id=1, type="private"),
         text="Hello",
         caption=None,
         reply_to_message=None,
-        answer=AsyncMock(),
+        answer=AsyncMock(return_value=pending),
     )
     openai_client = SimpleNamespace(generate_reply=AsyncMock(return_value="Hi there"))
     firestore_client = SimpleNamespace(
@@ -36,7 +37,8 @@ async def test_handle_message_uses_openai_and_firestore():
 
     openai_client.generate_reply.assert_awaited_once()
     firestore_client.append_message.assert_called()
-    message.answer.assert_awaited_once_with("Hi there")
+    message.answer.assert_awaited_once()
+    pending.edit_text.assert_awaited_once_with("Hi there")
 
 
 @pytest.mark.asyncio
@@ -65,13 +67,14 @@ async def test_handle_my_chat_member_leaves_for_non_admin():
 
 @pytest.mark.asyncio
 async def test_handle_message_openai_error_sends_fallback():
+    pending = SimpleNamespace(edit_text=AsyncMock())
     message = SimpleNamespace(
         from_user=SimpleNamespace(id=100013433, username="admin"),
         chat=SimpleNamespace(id=1, type="private"),
         text="Hello",
         caption=None,
         reply_to_message=None,
-        answer=AsyncMock(),
+        answer=AsyncMock(return_value=pending),
     )
     openai_client = SimpleNamespace(generate_reply=AsyncMock(side_effect=Exception("boom")))
     firestore_client = SimpleNamespace(
@@ -91,18 +94,20 @@ async def test_handle_message_openai_error_sends_fallback():
     await handle_message(message, context)
 
     message.answer.assert_awaited_once()
+    pending.edit_text.assert_awaited_once()
     firestore_client.append_message.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_handle_message_compacts_when_available():
+    pending = SimpleNamespace(edit_text=AsyncMock())
     message = SimpleNamespace(
         from_user=SimpleNamespace(id=100013433, username="admin"),
         chat=SimpleNamespace(id=1, type="private"),
         text="Hello",
         caption=None,
         reply_to_message=None,
-        answer=AsyncMock(),
+        answer=AsyncMock(return_value=pending),
     )
     openai_client = SimpleNamespace(
         generate_reply=AsyncMock(return_value="Hi there"),

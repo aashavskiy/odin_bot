@@ -44,16 +44,20 @@ async def handle_message(message: Message, context: AppContext) -> None:
         return
 
     user_id = message.from_user.id if message.from_user else 0
+    pending = await message.answer("Подумаю и отвечу…")
     history = context.firestore_client.get_recent_history(
         user_id, max_messages=context.history_max_messages
     )
     history.append({"role": "user", "content": message_text})
 
     try:
-        reply = await context.openai_client.generate_reply(history)
+        reply = await context.openai_client.generate_reply(history, user_text=message_text)
     except Exception:
         logger.exception("generate_reply_failed sender_id=%s", sender_id)
-        await message.answer("Temporary error talking to OpenAI. Please try again.")
+        try:
+            await pending.edit_text("Temporary error talking to OpenAI. Please try again.")
+        except Exception:
+            await message.answer("Temporary error talking to OpenAI. Please try again.")
         return
     context.firestore_client.append_message(user_id, "user", message_text)
     context.firestore_client.append_message(user_id, "assistant", reply)
@@ -66,7 +70,10 @@ async def handle_message(message: Message, context: AppContext) -> None:
             summarize_fn=context.openai_client.summarize_history,
         )
 
-    await message.answer(reply)
+    try:
+        await pending.edit_text(reply)
+    except Exception:
+        await message.answer(reply)
     logger.info(
         "message_answered chat_id=%s sender_id=%s chat_type=%s reply_len=%s",
         message.chat.id if message.chat else None,

@@ -37,7 +37,10 @@ def create_app() -> web.Application:
     dispatcher = Dispatcher()
     dispatcher.include_router(router)
 
-    openai_client = OpenAIClient(api_key=config.openai_api_key)
+    openai_client = OpenAIClient(
+        api_key=config.openai_api_key,
+        fast_model=config.openai_fast_model,
+    )
     if config.firestore_enabled:
         firestore_client = FirestoreClient(project_id=config.gcp_project_id or "")
     else:
