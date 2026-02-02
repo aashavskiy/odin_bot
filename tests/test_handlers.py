@@ -145,6 +145,39 @@ async def test_handle_message_compacts_when_available(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_handle_message_answers_locally_for_arithmetic():
+    message = SimpleNamespace(
+        from_user=SimpleNamespace(id=100013433, username="admin"),
+        chat=SimpleNamespace(id=1, type="private"),
+        text="2+2=",
+        caption=None,
+        reply_to_message=None,
+        answer=AsyncMock(),
+    )
+    openai_client = SimpleNamespace(generate_reply=AsyncMock())
+    firestore_client = SimpleNamespace(
+        get_recent_history=lambda *_: [],
+        append_message=AsyncMock(),
+    )
+    context = AppContext(
+        admin_id=100013433,
+        bot_username="mybot",
+        openai_client=openai_client,
+        firestore_client=firestore_client,
+        history_max_messages=16,
+        summary_trigger=20,
+        history_ttl_days=7,
+    )
+
+    await handle_message(message, context)
+
+    assert message.answer.await_count == 2
+    message.answer.assert_any_await("Подумаю и отвечу…")
+    message.answer.assert_any_await("4\n\n— model: local-arith")
+    openai_client.generate_reply.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_handle_my_chat_member_ignores_non_member_status():
     bot = SimpleNamespace(leave_chat=AsyncMock())
     event = SimpleNamespace(

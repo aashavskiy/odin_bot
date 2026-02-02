@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import asyncio
+import ast
 import logging
 import time
 
@@ -25,6 +26,58 @@ class AppContext:
 
 router = Router()
 logger = logging.getLogger(__name__)
+
+_ARITH_ALLOWED = set("0123456789+-*/(). \t\r\n")
+
+
+def _safe_eval_arithmetic(text: str) -> str | None:
+    stripped = text.strip()
+    if not stripped:
+        return None
+    if stripped.endswith("="):
+        stripped = stripped[:-1].strip()
+        if not stripped:
+            return None
+    if any(ch not in _ARITH_ALLOWED for ch in stripped):
+        return None
+    try:
+        node = ast.parse(stripped, mode="eval")
+    except SyntaxError:
+        return None
+
+    def _eval(n):
+        if isinstance(n, ast.Expression):
+            return _eval(n.body)
+        if isinstance(n, ast.BinOp) and isinstance(
+            n.op, (ast.Add, ast.Sub, ast.Mult, ast.Div)
+        ):
+            left = _eval(n.left)
+            right = _eval(n.right)
+            if left is None or right is None:
+                return None
+            if isinstance(n.op, ast.Add):
+                return left + right
+            if isinstance(n.op, ast.Sub):
+                return left - right
+            if isinstance(n.op, ast.Mult):
+                return left * right
+            if isinstance(n.op, ast.Div):
+                return left / right
+        if isinstance(n, ast.UnaryOp) and isinstance(n.op, (ast.UAdd, ast.USub)):
+            value = _eval(n.operand)
+            if value is None:
+                return None
+            return value if isinstance(n.op, ast.UAdd) else -value
+        if isinstance(n, ast.Constant) and isinstance(n.value, (int, float)):
+            return n.value
+        return None
+
+    result = _eval(node)
+    if result is None:
+        return None
+    if isinstance(result, float) and result.is_integer():
+        return str(int(result))
+    return str(result)
 
 
 @router.message()
@@ -53,6 +106,12 @@ async def handle_message(message: Message, context: AppContext) -> None:
     history.append({"role": "user", "content": message_text})
 
     try:
+        quick_answer = _safe_eval_arithmetic(message_text)
+        if quick_answer is not None:
+            context.firestore_client.append_message(user_id, "user", message_text)
+            context.firestore_client.append_message(user_id, "assistant", quick_answer)
+            await message.answer(f"{quick_answer}\n\n— model: local-arith")
+            return
         openai_start = time.monotonic()
         reply, model_used = await context.openai_client.generate_reply(
             history,

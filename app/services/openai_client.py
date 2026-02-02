@@ -11,6 +11,8 @@ class OpenAIClient:
     api_key: str
     model: str = "gpt-5.2"
     fast_model: str | None = None
+    fast_max_output_tokens: int = 128
+    fast_temperature: float = 0.2
     _logger: logging.Logger = logging.getLogger(__name__)
 
     def _client(self) -> AsyncOpenAI:
@@ -41,23 +43,48 @@ class OpenAIClient:
             return self.fast_model
         return self.model
 
+    def _build_messages(
+        self, messages: list[dict[str, str]], model: str
+    ) -> list[dict[str, str]]:
+        if model != self.fast_model:
+            return messages
+        if messages and messages[0].get("role") == "system":
+            return messages
+        system_prompt = (
+            "Answer concisely and directly. "
+            "Do not add extra offers or follow-up suggestions."
+        )
+        return [{"role": "system", "content": system_prompt}] + messages
+
     async def generate_reply(
         self, messages: list[dict[str, str]], user_text: str | None = None
     ) -> tuple[str, str]:
         client = self._client()
         model = self._choose_model(user_text, messages)
+        final_messages = self._build_messages(messages, model)
+        extra_args: dict[str, object] = {}
+        if model == self.fast_model:
+            extra_args["max_output_tokens"] = self.fast_max_output_tokens
+            extra_args["temperature"] = self.fast_temperature
+            extra_args["stop"] = ["\n\n"]
         try:
             response = await client.responses.create(
                 model=model,
-                input=messages,
+                input=final_messages,
+                **extra_args,
             )
             content = response.output_text
             return content.strip(), model
         except AttributeError:
-            response = await client.chat.completions.create(
-                model=model,
-                messages=messages,
-            )
+            chat_args: dict[str, object] = {
+                "model": model,
+                "messages": final_messages,
+            }
+            if model == self.fast_model:
+                chat_args["max_tokens"] = self.fast_max_output_tokens
+                chat_args["temperature"] = self.fast_temperature
+                chat_args["stop"] = ["\n\n"]
+            response = await client.chat.completions.create(**chat_args)
             content = response.choices[0].message.content or ""
             return content.strip(), model
         except Exception:

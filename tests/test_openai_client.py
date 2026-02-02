@@ -67,6 +67,10 @@ async def test_generate_reply_uses_fast_model_for_short_prompt():
 
     create.assert_awaited_once()
     assert create.await_args.kwargs["model"] == "fast"
+    assert create.await_args.kwargs["max_output_tokens"] == openai_client.fast_max_output_tokens
+    assert create.await_args.kwargs["temperature"] == openai_client.fast_temperature
+    assert create.await_args.kwargs["stop"] == ["\n\n"]
+    assert create.await_args.kwargs["input"][0]["role"] == "system"
     assert model_used == "fast"
 
 
