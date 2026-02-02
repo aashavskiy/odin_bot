@@ -51,7 +51,7 @@ async def handle_message(message: Message, context: AppContext) -> None:
     history.append({"role": "user", "content": message_text})
 
     try:
-        reply, model_used, effort_used = await context.openai_client.generate_reply(
+        reply, model_used = await context.openai_client.generate_reply(
             history,
             user_text=message_text,
         )
@@ -60,10 +60,7 @@ async def handle_message(message: Message, context: AppContext) -> None:
         await message.answer("Temporary error talking to OpenAI. Please try again.")
         return
     if model_used:
-        if effort_used:
-            reply = f"{reply}\n\n— model: {model_used} (effort: {effort_used})"
-        else:
-            reply = f"{reply}\n\n— model: {model_used}"
+        reply = f"{reply}\n\n— model: {model_used}"
     context.firestore_client.append_message(user_id, "user", message_text)
     context.firestore_client.append_message(user_id, "assistant", reply)
     if hasattr(context.firestore_client, "compact"):

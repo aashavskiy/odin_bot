@@ -10,22 +10,20 @@ from openai import AsyncOpenAI
 class OpenAIClient:
     api_key: str
     model: str = "gpt-5.2"
-    fast_reasoning_effort: str | None = "minimal"
+    fast_model: str | None = None
     _logger: logging.Logger = logging.getLogger(__name__)
 
     def _client(self) -> AsyncOpenAI:
         return AsyncOpenAI(api_key=self.api_key)
 
-    def _choose_reasoning_effort(
-        self, user_text: str | None, messages: list[dict[str, str]]
-    ) -> str | None:
-        if not self.fast_reasoning_effort:
-            return None
+    def _choose_model(self, user_text: str | None, messages: list[dict[str, str]]) -> str:
+        if not self.fast_model:
+            return self.model
         if not user_text:
-            return None
+            return self.model
         text = user_text.strip()
         if not text:
-            return None
+            return self.model
         lowered = text.lower()
         asks_standard_model = any(
             phrase in lowered
@@ -40,33 +38,28 @@ class OpenAIClient:
             )
         )
         if len(text) < 160 and (not asks_standard_model or len(messages) < 6):
-            return self.fast_reasoning_effort
-        return None
+            return self.fast_model
+        return self.model
 
     async def generate_reply(
         self, messages: list[dict[str, str]], user_text: str | None = None
-    ) -> tuple[str, str, str | None]:
+    ) -> tuple[str, str]:
         client = self._client()
-        model = self.model
-        reasoning_effort = self._choose_reasoning_effort(user_text, messages)
-        extra_args = {}
-        if reasoning_effort:
-            extra_args["reasoning"] = {"effort": reasoning_effort}
+        model = self._choose_model(user_text, messages)
         try:
             response = await client.responses.create(
                 model=model,
                 input=messages,
-                **extra_args,
             )
             content = response.output_text
-            return content.strip(), model, reasoning_effort
+            return content.strip(), model
         except AttributeError:
             response = await client.chat.completions.create(
                 model=model,
                 messages=messages,
             )
             content = response.choices[0].message.content or ""
-            return content.strip(), model, reasoning_effort
+            return content.strip(), model
         except Exception:
             self._logger.exception("OpenAI request failed")
             raise
