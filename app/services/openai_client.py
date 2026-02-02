@@ -43,7 +43,7 @@ class OpenAIClient:
 
     async def generate_reply(
         self, messages: list[dict[str, str]], user_text: str | None = None
-    ) -> str:
+    ) -> tuple[str, str]:
         client = self._client()
         model = self._choose_model(user_text, messages)
         try:
@@ -52,14 +52,14 @@ class OpenAIClient:
                 input=messages,
             )
             content = response.output_text
-            return content.strip()
+            return content.strip(), model
         except AttributeError:
             response = await client.chat.completions.create(
                 model=model,
                 messages=messages,
             )
             content = response.choices[0].message.content or ""
-            return content.strip()
+            return content.strip(), model
         except Exception:
             self._logger.exception("OpenAI request failed")
             raise
