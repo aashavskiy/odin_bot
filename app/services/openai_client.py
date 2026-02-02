@@ -66,7 +66,7 @@ class OpenAIClient:
                 messages=messages,
             )
             content = response.choices[0].message.content or ""
-            return content.strip(), model, None
+            return content.strip(), model, reasoning_effort
         except Exception:
             self._logger.exception("OpenAI request failed")
             raise
