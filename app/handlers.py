@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import asyncio
 import logging
+import time
 
 from aiogram import Router
 from aiogram.enums import ChatMemberStatus
@@ -51,29 +53,45 @@ async def handle_message(message: Message, context: AppContext) -> None:
     history.append({"role": "user", "content": message_text})
 
     try:
+        openai_start = time.monotonic()
         reply, model_used = await context.openai_client.generate_reply(
             history,
             user_text=message_text,
+        )
+        openai_elapsed = time.monotonic() - openai_start
+        logger.info(
+            "openai_reply_done sender_id=%s model=%s elapsed_ms=%s",
+            sender_id,
+            model_used,
+            int(openai_elapsed * 1000),
         )
     except Exception:
         logger.exception("generate_reply_failed sender_id=%s", sender_id)
         await message.answer("Temporary error talking to OpenAI. Please try again.")
         return
+
     display_reply = reply
     if model_used:
         display_reply = f"{reply}\n\n— model: {model_used}"
     context.firestore_client.append_message(user_id, "user", message_text)
     context.firestore_client.append_message(user_id, "assistant", reply)
-    if hasattr(context.firestore_client, "compact"):
-        await context.firestore_client.compact(
-            user_id,
-            max_messages=context.history_max_messages,
-            summary_trigger=context.summary_trigger,
-            ttl_hours=context.history_ttl_days * 24,
-            summarize_fn=context.openai_client.summarize_history,
-        )
 
     await message.answer(display_reply)
+
+    if hasattr(context.firestore_client, "compact"):
+        async def _compact() -> None:
+            try:
+                await context.firestore_client.compact(
+                    user_id,
+                    max_messages=context.history_max_messages,
+                    summary_trigger=context.summary_trigger,
+                    ttl_hours=context.history_ttl_days * 24,
+                    summarize_fn=context.openai_client.summarize_history,
+                )
+            except Exception:
+                logger.exception("compact_failed sender_id=%s", sender_id)
+
+        asyncio.create_task(_compact())
     logger.info(
         "message_answered chat_id=%s sender_id=%s chat_type=%s reply_len=%s",
         message.chat.id if message.chat else None,

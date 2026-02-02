@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
+import asyncio
 
 import pytest
 from aiogram.enums import ChatMemberStatus
@@ -99,7 +100,14 @@ async def test_handle_message_openai_error_sends_fallback():
 
 
 @pytest.mark.asyncio
-async def test_handle_message_compacts_when_available():
+async def test_handle_message_compacts_when_available(monkeypatch):
+    tasks = []
+
+    def fake_create_task(coro):
+        task = asyncio.create_task(coro)
+        tasks.append(task)
+        return task
+
     message = SimpleNamespace(
         from_user=SimpleNamespace(id=100013433, username="admin"),
         chat=SimpleNamespace(id=1, type="private"),
@@ -127,7 +135,11 @@ async def test_handle_message_compacts_when_available():
         history_ttl_days=7,
     )
 
+    monkeypatch.setattr(asyncio, "create_task", fake_create_task)
     await handle_message(message, context)
+
+    for task in tasks:
+        await task
 
     firestore_client.compact.assert_awaited_once()
 
