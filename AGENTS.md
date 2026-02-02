@@ -18,6 +18,7 @@
 - This is **not** due to the app itself; code only calls `delete_webhook` on shutdown.
 - Something outside this repo is likely calling `deleteWebhook` or running polling mode with the same token.
   - User asked to avoid touching other apps; still unresolved.
+  - Deploys can fail if Telegram rate-limits `setWebhook` during startup; now handled gracefully.
 
 ## What Was Changed in Repo
 - Added fallback for OpenAI Responses API:

@@ -5,6 +5,7 @@ import logging
 from aiohttp import web
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from aiogram.exceptions import TelegramRetryAfter
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
 from app.config import load_config
@@ -16,7 +17,12 @@ from app.services.openai_client import OpenAIClient
 
 
 async def on_startup(bot: Bot, webhook_url: str) -> None:
-    await bot.set_webhook(webhook_url, drop_pending_updates=True)
+    try:
+        await bot.set_webhook(webhook_url, drop_pending_updates=True)
+    except TelegramRetryAfter as exc:
+        logging.getLogger(__name__).warning(
+            "set_webhook_rate_limited retry_after=%s", exc.retry_after
+        )
 
 
 async def on_shutdown(bot: Bot) -> None:
