@@ -18,7 +18,11 @@ class ReminderParseResult:
 
 def parse_datetime_local(value: str) -> datetime | None:
     if not value:
-    return None
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
 
 
 _TZ_ALIASES: dict[str, list[str]] = {
@@ -52,10 +56,6 @@ def resolve_timezone_name(user_text: str) -> str | None:
             if alias in normalized:
                 return tz_name
     return None
-    try:
-        return datetime.fromisoformat(value)
-    except ValueError:
-        return None
 
 
 def to_utc(local_dt: datetime, tz_name: str) -> datetime:
