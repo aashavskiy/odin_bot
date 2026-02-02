@@ -5,6 +5,10 @@ import logging
 
 from openai import AsyncOpenAI
 
+import json
+
+from app.reminders import ReminderParseResult
+
 
 @dataclass
 class OpenAIClient:
@@ -90,6 +94,68 @@ class OpenAIClient:
         except Exception:
             self._logger.exception("OpenAI request failed")
             raise
+
+    async def parse_reminder(
+        self, user_text: str, *, timezone_name: str | None, now_local_iso: str
+    ) -> ReminderParseResult:
+        system_prompt = (
+            "You are a parser that extracts reminder intent from Russian text. "
+            "Return ONLY valid JSON with these keys: "
+            "intent, text, datetime_local, repeat, confidence, original_time_phrase. "
+            "intent: \"set_reminder\" | \"cancel\" | \"list\" | \"unknown\". "
+            "repeat: \"none\" | \"hourly\" | \"daily\" | \"weekly\" | \"monthly\" | \"yearly\". "
+            "If time is missing or ambiguous, keep datetime_local empty. "
+            "Keep confidence low (<0.7) when time is ambiguous or text is unclear."
+        )
+        user_prompt = (
+            f"User timezone: {timezone_name or ''}\n"
+            f"Current local time: {now_local_iso}\n\n"
+            f"User message:\n\"{user_text}\""
+        )
+        client = self._client()
+        try:
+            response = await client.responses.create(
+                model=self.fast_model or self.model,
+                input=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_output_tokens=256,
+                temperature=0,
+            )
+            content = response.output_text.strip()
+        except AttributeError:
+            response = await client.chat.completions.create(
+                model=self.fast_model or self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=256,
+                temperature=0,
+            )
+            content = response.choices[0].message.content or ""
+            content = content.strip()
+        try:
+            data = json.loads(content)
+        except Exception:
+            self._logger.warning("parse_reminder_invalid_json content=%r", content)
+            return ReminderParseResult(
+                intent="unknown",
+                text="",
+                datetime_local="",
+                repeat="none",
+                confidence=0.0,
+                original_time_phrase="",
+            )
+        return ReminderParseResult(
+            intent=data.get("intent", "unknown"),
+            text=data.get("text", ""),
+            datetime_local=data.get("datetime_local", ""),
+            repeat=data.get("repeat", "none"),
+            confidence=float(data.get("confidence", 0.0) or 0.0),
+            original_time_phrase=data.get("original_time_phrase", ""),
+        )
 
     async def summarize_history(
         self, messages: list[dict[str, str]], existing_summary: str

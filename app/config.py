@@ -17,6 +17,12 @@ class Config:
     history_max_messages: int
     summary_trigger: int
     history_ttl_days: int
+    tasks_project_id: str | None
+    tasks_location: str | None
+    tasks_queue: str | None
+    tasks_base: str | None
+    tasks_token: str | None
+    reminder_confidence_threshold: float
 
 
 def load_config() -> Config:
@@ -33,6 +39,14 @@ def load_config() -> Config:
     history_max_messages = int(os.getenv("HISTORY_MAX_MESSAGES", "16"))
     summary_trigger = int(os.getenv("SUMMARY_TRIGGER", "20"))
     history_ttl_days = int(os.getenv("HISTORY_TTL_DAYS", "7"))
+    tasks_project_id = os.getenv("TASKS_PROJECT_ID", "").strip()
+    tasks_location = os.getenv("TASKS_LOCATION", "").strip()
+    tasks_queue = os.getenv("TASKS_QUEUE", "").strip()
+    tasks_base = os.getenv("TASKS_BASE", "").strip()
+    tasks_token = os.getenv("TASKS_TOKEN", "").strip()
+    reminder_confidence_threshold = float(
+        os.getenv("REMINDER_CONFIDENCE_THRESHOLD", "0.7")
+    )
 
     if not bot_token or not openai_api_key or not admin_id_raw:
         raise RuntimeError(
@@ -61,4 +75,10 @@ def load_config() -> Config:
         history_max_messages=history_max_messages,
         summary_trigger=summary_trigger,
         history_ttl_days=history_ttl_days,
+        tasks_project_id=tasks_project_id or gcp_project_id or None,
+        tasks_location=tasks_location or None,
+        tasks_queue=tasks_queue or None,
+        tasks_base=tasks_base or webhook_base,
+        tasks_token=tasks_token or None,
+        reminder_confidence_threshold=reminder_confidence_threshold,
     )

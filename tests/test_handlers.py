@@ -31,6 +31,8 @@ async def test_handle_message_uses_openai_and_firestore():
         history_max_messages=16,
         summary_trigger=20,
         history_ttl_days=7,
+        reminder_confidence_threshold=0.7,
+        tasks_config=None,
     )
 
     await handle_message(message, context)
@@ -59,6 +61,8 @@ async def test_handle_my_chat_member_leaves_for_non_admin():
         history_max_messages=16,
         summary_trigger=20,
         history_ttl_days=7,
+        reminder_confidence_threshold=0.7,
+        tasks_config=None,
     )
 
     await handle_my_chat_member(event, context)
@@ -89,6 +93,8 @@ async def test_handle_message_openai_error_sends_fallback():
         history_max_messages=16,
         summary_trigger=20,
         history_ttl_days=7,
+        reminder_confidence_threshold=0.7,
+        tasks_config=None,
     )
 
     await handle_message(message, context)
@@ -133,6 +139,8 @@ async def test_handle_message_compacts_when_available(monkeypatch):
         history_max_messages=16,
         summary_trigger=20,
         history_ttl_days=7,
+        reminder_confidence_threshold=0.7,
+        tasks_config=None,
     )
 
     monkeypatch.setattr(asyncio, "create_task", fake_create_task)
@@ -167,6 +175,8 @@ async def test_handle_message_answers_locally_for_arithmetic():
         history_max_messages=16,
         summary_trigger=20,
         history_ttl_days=7,
+        reminder_confidence_threshold=0.7,
+        tasks_config=None,
     )
 
     await handle_message(message, context)
@@ -192,6 +202,8 @@ async def test_handle_my_chat_member_ignores_non_member_status():
         history_max_messages=16,
         summary_trigger=20,
         history_ttl_days=7,
+        reminder_confidence_threshold=0.7,
+        tasks_config=None,
     )
 
     await handle_my_chat_member(event, context)

@@ -5,6 +5,10 @@ from datetime import datetime, timedelta, timezone
 
 from google.cloud import firestore
 
+PENDING_REMINDERS_COLLECTION = "pending_reminders"
+REMINDERS_COLLECTION = "reminders"
+USERS_COLLECTION = "users"
+
 
 @dataclass
 class FirestoreClient:
@@ -26,6 +30,83 @@ class FirestoreClient:
         client.collection("conversations").document(str(user_id)).collection(
             "messages"
         ).add(doc)
+
+    def get_user_timezone(self, user_id: int) -> str | None:
+        client = self._client()
+        doc = client.collection(USERS_COLLECTION).document(str(user_id)).get()
+        if not doc.exists:
+            return None
+        return doc.to_dict().get("timezone")
+
+    def set_user_timezone(self, user_id: int, timezone_name: str) -> None:
+        client = self._client()
+        client.collection(USERS_COLLECTION).document(str(user_id)).set(
+            {
+                "timezone": timezone_name,
+                "updated_at": firestore.SERVER_TIMESTAMP,
+                "created_at": firestore.SERVER_TIMESTAMP,
+            },
+            merge=True,
+        )
+
+    def get_pending_reminder(self, user_id: int) -> dict | None:
+        client = self._client()
+        doc = (
+            client.collection(PENDING_REMINDERS_COLLECTION)
+            .document(str(user_id))
+            .get()
+        )
+        if not doc.exists:
+            return None
+        return doc.to_dict()
+
+    def set_pending_reminder(self, user_id: int, payload: dict) -> None:
+        client = self._client()
+        client.collection(PENDING_REMINDERS_COLLECTION).document(str(user_id)).set(
+            payload
+        )
+
+    def clear_pending_reminder(self, user_id: int) -> None:
+        client = self._client()
+        client.collection(PENDING_REMINDERS_COLLECTION).document(str(user_id)).delete()
+
+    def create_reminder(self, payload: dict) -> str:
+        client = self._client()
+        ref = client.collection(REMINDERS_COLLECTION).document()
+        ref.set(payload)
+        return ref.id
+
+    def get_reminder(self, reminder_id: str) -> dict | None:
+        client = self._client()
+        doc = client.collection(REMINDERS_COLLECTION).document(reminder_id).get()
+        if not doc.exists:
+            return None
+        data = doc.to_dict()
+        data["id"] = reminder_id
+        return data
+
+    def update_reminder(self, reminder_id: str, payload: dict) -> None:
+        client = self._client()
+        client.collection(REMINDERS_COLLECTION).document(reminder_id).set(
+            payload, merge=True
+        )
+
+    def list_due_reminders(self, now_utc: datetime, limit: int = 50) -> list[dict]:
+        client = self._client()
+        query = (
+            client.collection(REMINDERS_COLLECTION)
+            .where("status", "==", "scheduled")
+            .where("schedule_at_utc", "<=", now_utc)
+            .order_by("schedule_at_utc")
+            .limit(limit)
+        )
+        docs = list(query.stream())
+        results = []
+        for doc in docs:
+            data = doc.to_dict()
+            data["id"] = doc.id
+            results.append(data)
+        return results
 
     def get_recent_history(self, user_id: int, max_messages: int) -> list[dict[str, str]]:
         client = self._client()
