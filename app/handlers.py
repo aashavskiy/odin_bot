@@ -158,11 +158,20 @@ async def handle_message(message: Message, context: AppContext) -> None:
             else None
         )
         if pending.get("state") == "awaiting_timezone":
-            tz_candidate = message_text.strip()
+            from app.reminders import resolve_timezone_name
+
+            tz_candidate = resolve_timezone_name(message_text)
+            if not tz_candidate:
+                await message.answer(
+                    "Не смог распознать часовой пояс. Пример: Europe/Moscow"
+                )
+                return
             try:
                 ZoneInfo(tz_candidate)
             except ZoneInfoNotFoundError:
-                await message.answer("Не смог распознать часовой пояс. Пример: Europe/Moscow")
+                await message.answer(
+                    "Не смог распознать часовой пояс. Пример: Europe/Moscow"
+                )
                 return
             if hasattr(context.firestore_client, "set_user_timezone"):
                 context.firestore_client.set_user_timezone(user_id, tz_candidate)

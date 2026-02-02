@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import re
 from zoneinfo import ZoneInfo
 
 
@@ -17,7 +18,40 @@ class ReminderParseResult:
 
 def parse_datetime_local(value: str) -> datetime | None:
     if not value:
+    return None
+
+
+_TZ_ALIASES: dict[str, list[str]] = {
+    "Asia/Jerusalem": [
+        "тель авив",
+        "тель авиве",
+        "tel aviv",
+        "telaviv",
+        "tel aviv yafo",
+        "tel aviv-yafo",
+        "израиль",
+        "israel",
+        "jerusalem",
+        "иерусалим",
+    ],
+}
+
+
+def resolve_timezone_name(user_text: str) -> str | None:
+    candidate = (user_text or "").strip()
+    if not candidate:
         return None
+    match = re.search(r"\b[A-Za-z]+/[A-Za-z_]+\b", candidate)
+    if match:
+        return match.group(0)
+    normalized = re.sub(r"[^0-9a-zа-я]+", " ", candidate.lower()).strip()
+    if not normalized:
+        return None
+    for tz_name, aliases in _TZ_ALIASES.items():
+        for alias in aliases:
+            if alias in normalized:
+                return tz_name
+    return None
     try:
         return datetime.fromisoformat(value)
     except ValueError:
