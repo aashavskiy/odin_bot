@@ -99,19 +99,34 @@ async def handle_message(message: Message, context: AppContext) -> None:
         return
 
     user_id = message.from_user.id if message.from_user else 0
+    quick_answer = _safe_eval_arithmetic(message_text)
+    if quick_answer is not None:
+        context.firestore_client.append_message(user_id, "user", message_text)
+        context.firestore_client.append_message(user_id, "assistant", quick_answer)
+        send_start = time.monotonic()
+        await message.answer(f"{quick_answer}\n\n— model: local-arith")
+        send_elapsed = time.monotonic() - send_start
+        logger.info(
+            "telegram_send_done sender_id=%s kind=local_arith elapsed_ms=%s",
+            sender_id,
+            int(send_elapsed * 1000),
+        )
+        return
+
+    send_start = time.monotonic()
     await message.answer("Подумаю и отвечу…")
+    send_elapsed = time.monotonic() - send_start
+    logger.info(
+        "telegram_send_done sender_id=%s kind=thinking elapsed_ms=%s",
+        sender_id,
+        int(send_elapsed * 1000),
+    )
     history = context.firestore_client.get_recent_history(
         user_id, max_messages=context.history_max_messages
     )
     history.append({"role": "user", "content": message_text})
 
     try:
-        quick_answer = _safe_eval_arithmetic(message_text)
-        if quick_answer is not None:
-            context.firestore_client.append_message(user_id, "user", message_text)
-            context.firestore_client.append_message(user_id, "assistant", quick_answer)
-            await message.answer(f"{quick_answer}\n\n— model: local-arith")
-            return
         openai_start = time.monotonic()
         reply, model_used = await context.openai_client.generate_reply(
             history,
@@ -135,7 +150,14 @@ async def handle_message(message: Message, context: AppContext) -> None:
     context.firestore_client.append_message(user_id, "user", message_text)
     context.firestore_client.append_message(user_id, "assistant", reply)
 
+    send_start = time.monotonic()
     await message.answer(display_reply)
+    send_elapsed = time.monotonic() - send_start
+    logger.info(
+        "telegram_send_done sender_id=%s kind=final elapsed_ms=%s",
+        sender_id,
+        int(send_elapsed * 1000),
+    )
 
     if hasattr(context.firestore_client, "compact"):
         async def _compact() -> None:

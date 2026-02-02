@@ -171,9 +171,7 @@ async def test_handle_message_answers_locally_for_arithmetic():
 
     await handle_message(message, context)
 
-    assert message.answer.await_count == 2
-    message.answer.assert_any_await("Подумаю и отвечу…")
-    message.answer.assert_any_await("4\n\n— model: local-arith")
+    message.answer.assert_awaited_once_with("4\n\n— model: local-arith")
     openai_client.generate_reply.assert_not_awaited()
 
 
