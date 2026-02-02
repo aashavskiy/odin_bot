@@ -59,8 +59,9 @@ async def handle_message(message: Message, context: AppContext) -> None:
         logger.exception("generate_reply_failed sender_id=%s", sender_id)
         await message.answer("Temporary error talking to OpenAI. Please try again.")
         return
+    display_reply = reply
     if model_used:
-        reply = f"{reply}\n\n— model: {model_used}"
+        display_reply = f"{reply}\n\n— model: {model_used}"
     context.firestore_client.append_message(user_id, "user", message_text)
     context.firestore_client.append_message(user_id, "assistant", reply)
     if hasattr(context.firestore_client, "compact"):
@@ -72,7 +73,7 @@ async def handle_message(message: Message, context: AppContext) -> None:
             summarize_fn=context.openai_client.summarize_history,
         )
 
-    await message.answer(reply)
+    await message.answer(display_reply)
     logger.info(
         "message_answered chat_id=%s sender_id=%s chat_type=%s reply_len=%s",
         message.chat.id if message.chat else None,
