@@ -54,6 +54,9 @@
 - Added LLM-based timezone resolution fallback:
   - If awaiting timezone and local parsing fails, call OpenAI to resolve IANA TZ.
   - Files: `app/handlers.py`, `app/services/openai_client.py`.
+- Added LLM timezone inference for initial reminder requests when no saved TZ:
+  - If reminder text includes a location, resolve TZ before prompting the user.
+  - File: `app/handlers.py`.
 - Added fast-response guardrails:
   - Local arithmetic responses to bypass OpenAI latency.
   - Fast model response truncation + stop sequence.

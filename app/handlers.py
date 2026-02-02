@@ -338,18 +338,29 @@ async def handle_message(message: Message, context: AppContext) -> None:
                     await message.answer("Когда именно напомнить?")
                     return
                 if not tz_name:
-                    context.firestore_client.set_pending_reminder(
-                        user_id,
-                        {
-                            "state": "awaiting_timezone",
-                            "text": parsed.text,
-                            "datetime_local": parsed.datetime_local,
-                            "repeat": parsed.repeat or "none",
-                            "original_time_phrase": parsed.original_time_phrase,
-                        },
+                    tz_name = await context.openai_client.resolve_timezone(
+                        message_text
                     )
-                    await message.answer("Укажи часовой пояс (например Europe/Moscow)")
-                    return
+                    if tz_name:
+                        try:
+                            ZoneInfo(tz_name)
+                        except ZoneInfoNotFoundError:
+                            tz_name = None
+                    if not tz_name:
+                        context.firestore_client.set_pending_reminder(
+                            user_id,
+                            {
+                                "state": "awaiting_timezone",
+                                "text": parsed.text,
+                                "datetime_local": parsed.datetime_local,
+                                "repeat": parsed.repeat or "none",
+                                "original_time_phrase": parsed.original_time_phrase,
+                            },
+                        )
+                        await message.answer("Укажи часовой пояс (например Europe/Moscow)")
+                        return
+                    if hasattr(context.firestore_client, "set_user_timezone"):
+                        context.firestore_client.set_user_timezone(user_id, tz_name)
                 local_dt = parse_datetime_local(parsed.datetime_local)
                 if not local_dt:
                     await message.answer("Когда именно напомнить?")
