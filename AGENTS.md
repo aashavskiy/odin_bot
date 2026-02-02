@@ -11,6 +11,7 @@
 - Cloud Tasks API enabled; queue `reminders` in `us-central1`.
 - Cloud Scheduler job `reminders-sweep` runs every minute.
 - Tasks endpoints protected with `X-Tasks-Token` (env `TASKS_TOKEN`).
+- When user text doesn't match expected reminder input (e.g., timezone), fall back to LLM first before asking again.
 
 ## Current Issue
 - Telegram webhook keeps getting cleared (`getWebhookInfo` shows `url: ""`).
@@ -49,6 +50,9 @@
   - Files: `app/handlers.py`, `app/reminders.py`, `app/tasks.py`,
     `app/services/firestore_client.py`, `app/services/openai_client.py`,
     `app/main.py`, `.github/workflows/deploy.yml`.
+- Added LLM-based timezone resolution fallback:
+  - If awaiting timezone and local parsing fails, call OpenAI to resolve IANA TZ.
+  - Files: `app/handlers.py`, `app/services/openai_client.py`.
 - Added fast-response guardrails:
   - Local arithmetic responses to bypass OpenAI latency.
   - Fast model response truncation + stop sequence.

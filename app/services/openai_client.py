@@ -157,6 +157,45 @@ class OpenAIClient:
             original_time_phrase=data.get("original_time_phrase", ""),
         )
 
+    async def resolve_timezone(self, user_text: str) -> str | None:
+        system_prompt = (
+            "Extract an IANA timezone name from the user's message. "
+            "Return ONLY valid JSON with one key: timezone. "
+            "If you cannot confidently determine the timezone, return {\"timezone\": \"\"}."
+        )
+        user_prompt = f"User message:\n\"{user_text}\""
+        client = self._client()
+        try:
+            response = await client.responses.create(
+                model=self.fast_model or self.model,
+                input=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_output_tokens=64,
+                temperature=0,
+            )
+            content = response.output_text.strip()
+        except AttributeError:
+            response = await client.chat.completions.create(
+                model=self.fast_model or self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=64,
+                temperature=0,
+            )
+            content = response.choices[0].message.content or ""
+            content = content.strip()
+        try:
+            data = json.loads(content)
+        except Exception:
+            self._logger.warning("resolve_timezone_invalid_json content=%r", content)
+            return None
+        tz_name = (data.get("timezone") or "").strip()
+        return tz_name or None
+
     async def summarize_history(
         self, messages: list[dict[str, str]], existing_summary: str
     ) -> str:
