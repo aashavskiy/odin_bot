@@ -47,40 +47,48 @@ async def test_generate_reply_falls_back_to_chat_completions():
 
 
 @pytest.mark.asyncio
-async def test_generate_reply_uses_fast_model_for_short_prompt():
+async def test_generate_reply_uses_fast_reasoning_for_short_prompt():
     response = SimpleNamespace(output_text="ok")
     create = AsyncMock(return_value=response)
     client = SimpleNamespace(
         responses=SimpleNamespace(create=create)
     )
-    openai_client = OpenAIClient(api_key="key", model="slow", fast_model="fast")
+    openai_client = OpenAIClient(
+        api_key="key",
+        model="gpt-5.2",
+        fast_reasoning_effort="minimal",
+    )
     openai_client._client = lambda: client
 
-    _, model_used = await openai_client.generate_reply(
+    await openai_client.generate_reply(
         [{"role": "user", "content": "ping"}],
         user_text="ping",
     )
 
     create.assert_awaited_once()
-    assert create.await_args.kwargs["model"] == "fast"
-    assert model_used == "fast"
+    assert create.await_args.kwargs["model"] == "gpt-5.2"
+    assert create.await_args.kwargs["reasoning"] == {"effort": "minimal"}
 
 
 @pytest.mark.asyncio
-async def test_generate_reply_uses_standard_model_when_requested_and_long_history():
+async def test_generate_reply_omits_reasoning_when_requested_and_long_history():
     response = SimpleNamespace(output_text="ok")
     create = AsyncMock(return_value=response)
     client = SimpleNamespace(
         responses=SimpleNamespace(create=create)
     )
-    openai_client = OpenAIClient(api_key="key", model="slow", fast_model="fast")
+    openai_client = OpenAIClient(
+        api_key="key",
+        model="gpt-5.2",
+        fast_reasoning_effort="minimal",
+    )
     openai_client._client = lambda: client
     messages = [{"role": "user", "content": "hi"}] * 6
 
-    _, model_used = await openai_client.generate_reply(
+    await openai_client.generate_reply(
         messages,
         user_text="Используй стандартную модель, пожалуйста",
     )
 
-    assert create.await_args.kwargs["model"] == "slow"
-    assert model_used == "slow"
+    assert create.await_args.kwargs["model"] == "gpt-5.2"
+    assert "reasoning" not in create.await_args.kwargs

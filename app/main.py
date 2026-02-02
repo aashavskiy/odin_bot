@@ -39,7 +39,7 @@ def create_app() -> web.Application:
 
     openai_client = OpenAIClient(
         api_key=config.openai_api_key,
-        fast_model=config.openai_fast_model,
+        fast_reasoning_effort=config.openai_fast_reasoning_effort or "minimal",
     )
     if config.firestore_enabled:
         firestore_client = FirestoreClient(project_id=config.gcp_project_id or "")

@@ -18,7 +18,7 @@ async def test_handle_message_uses_openai_and_firestore():
         reply_to_message=None,
         answer=AsyncMock(return_value=pending),
     )
-    openai_client = SimpleNamespace(generate_reply=AsyncMock(return_value=("Hi there", "fast")))
+    openai_client = SimpleNamespace(generate_reply=AsyncMock(return_value=("Hi there", "gpt-5.2")))
     firestore_client = SimpleNamespace(
         get_recent_history=lambda _: [],
         append_message=AsyncMock(),
@@ -38,7 +38,7 @@ async def test_handle_message_uses_openai_and_firestore():
     openai_client.generate_reply.assert_awaited_once()
     firestore_client.append_message.assert_called()
     message.answer.assert_awaited_once()
-    pending.edit_text.assert_awaited_once_with("Hi there\n\n— model: fast")
+    pending.edit_text.assert_awaited_once_with("Hi there\n\n— model: gpt-5.2")
 
 
 @pytest.mark.asyncio
@@ -110,7 +110,7 @@ async def test_handle_message_compacts_when_available():
         answer=AsyncMock(return_value=pending),
     )
     openai_client = SimpleNamespace(
-        generate_reply=AsyncMock(return_value=("Hi there", "fast")),
+        generate_reply=AsyncMock(return_value=("Hi there", "gpt-5.2")),
         summarize_history=AsyncMock(return_value="Summary"),
     )
     firestore_client = SimpleNamespace(

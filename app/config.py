@@ -13,7 +13,7 @@ class Config:
     webhook_path: str
     firestore_enabled: bool
     gcp_project_id: str | None
-    openai_fast_model: str | None
+    openai_fast_reasoning_effort: str | None
     history_max_messages: int
     summary_trigger: int
     history_ttl_days: int
@@ -22,7 +22,7 @@ class Config:
 def load_config() -> Config:
     bot_token = os.getenv("BOT_TOKEN", "").strip()
     openai_api_key = os.getenv("OPENAI_API_KEY", "").strip()
-    openai_fast_model = os.getenv("OPENAI_FAST_MODEL", "").strip() or None
+    openai_fast_reasoning_effort = os.getenv("OPENAI_FAST_REASONING_EFFORT", "").strip() or None
     admin_id_raw = os.getenv("ADMIN_ID", "").strip()
     firestore_enabled = os.getenv("FIRESTORE_DISABLED", "").strip().lower() not in {
         "1",
@@ -57,7 +57,7 @@ def load_config() -> Config:
         webhook_path=webhook_path,
         firestore_enabled=firestore_enabled,
         gcp_project_id=gcp_project_id or None,
-        openai_fast_model=openai_fast_model,
+        openai_fast_reasoning_effort=openai_fast_reasoning_effort,
         history_max_messages=history_max_messages,
         summary_trigger=summary_trigger,
         history_ttl_days=history_ttl_days,

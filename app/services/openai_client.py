@@ -10,20 +10,22 @@ from openai import AsyncOpenAI
 class OpenAIClient:
     api_key: str
     model: str = "gpt-5.2"
-    fast_model: str | None = None
+    fast_reasoning_effort: str | None = "minimal"
     _logger: logging.Logger = logging.getLogger(__name__)
 
     def _client(self) -> AsyncOpenAI:
         return AsyncOpenAI(api_key=self.api_key)
 
-    def _choose_model(self, user_text: str | None, messages: list[dict[str, str]]) -> str:
-        if not self.fast_model:
-            return self.model
+    def _choose_reasoning_effort(
+        self, user_text: str | None, messages: list[dict[str, str]]
+    ) -> str | None:
+        if not self.fast_reasoning_effort:
+            return None
         if not user_text:
-            return self.model
+            return None
         text = user_text.strip()
         if not text:
-            return self.model
+            return None
         lowered = text.lower()
         asks_standard_model = any(
             phrase in lowered
@@ -38,18 +40,23 @@ class OpenAIClient:
             )
         )
         if len(text) < 160 and (not asks_standard_model or len(messages) < 6):
-            return self.fast_model
-        return self.model
+            return self.fast_reasoning_effort
+        return None
 
     async def generate_reply(
         self, messages: list[dict[str, str]], user_text: str | None = None
     ) -> tuple[str, str]:
         client = self._client()
-        model = self._choose_model(user_text, messages)
+        model = self.model
+        reasoning_effort = self._choose_reasoning_effort(user_text, messages)
+        extra_args = {}
+        if reasoning_effort:
+            extra_args["reasoning"] = {"effort": reasoning_effort}
         try:
             response = await client.responses.create(
                 model=model,
                 input=messages,
+                **extra_args,
             )
             content = response.output_text
             return content.strip(), model
