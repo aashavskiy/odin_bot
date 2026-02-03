@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 import asyncio
 
 import pytest
@@ -20,8 +20,8 @@ async def test_handle_message_uses_openai_and_firestore():
     )
     openai_client = SimpleNamespace(generate_reply=AsyncMock(return_value=("Hi there", "fast")))
     firestore_client = SimpleNamespace(
-        get_recent_history=lambda _: [],
-        append_message=AsyncMock(),
+        get_recent_history=lambda *_ , **__: [],
+        append_message=Mock(),
     )
     context = AppContext(
         admin_id=100013433,
@@ -31,8 +31,6 @@ async def test_handle_message_uses_openai_and_firestore():
         history_max_messages=16,
         summary_trigger=20,
         history_ttl_days=7,
-        reminder_confidence_threshold=0.7,
-        tasks_config=None,
     )
 
     await handle_message(message, context)
@@ -61,8 +59,6 @@ async def test_handle_my_chat_member_leaves_for_non_admin():
         history_max_messages=16,
         summary_trigger=20,
         history_ttl_days=7,
-        reminder_confidence_threshold=0.7,
-        tasks_config=None,
     )
 
     await handle_my_chat_member(event, context)
@@ -82,8 +78,8 @@ async def test_handle_message_openai_error_sends_fallback():
     )
     openai_client = SimpleNamespace(generate_reply=AsyncMock(side_effect=Exception("boom")))
     firestore_client = SimpleNamespace(
-        get_recent_history=lambda *_: [],
-        append_message=AsyncMock(),
+        get_recent_history=lambda *_ , **__: [],
+        append_message=Mock(),
     )
     context = AppContext(
         admin_id=100013433,
@@ -93,8 +89,6 @@ async def test_handle_message_openai_error_sends_fallback():
         history_max_messages=16,
         summary_trigger=20,
         history_ttl_days=7,
-        reminder_confidence_threshold=0.7,
-        tasks_config=None,
     )
 
     await handle_message(message, context)
@@ -108,9 +102,10 @@ async def test_handle_message_openai_error_sends_fallback():
 @pytest.mark.asyncio
 async def test_handle_message_compacts_when_available(monkeypatch):
     tasks = []
+    original_create_task = asyncio.create_task
 
     def fake_create_task(coro):
-        task = asyncio.create_task(coro)
+        task = original_create_task(coro)
         tasks.append(task)
         return task
 
@@ -127,8 +122,8 @@ async def test_handle_message_compacts_when_available(monkeypatch):
         summarize_history=AsyncMock(return_value="Summary"),
     )
     firestore_client = SimpleNamespace(
-        get_recent_history=lambda *_: [],
-        append_message=AsyncMock(),
+        get_recent_history=lambda *_ , **__: [],
+        append_message=Mock(),
         compact=AsyncMock(),
     )
     context = AppContext(
@@ -139,8 +134,6 @@ async def test_handle_message_compacts_when_available(monkeypatch):
         history_max_messages=16,
         summary_trigger=20,
         history_ttl_days=7,
-        reminder_confidence_threshold=0.7,
-        tasks_config=None,
     )
 
     monkeypatch.setattr(asyncio, "create_task", fake_create_task)
@@ -164,8 +157,8 @@ async def test_handle_message_answers_locally_for_arithmetic():
     )
     openai_client = SimpleNamespace(generate_reply=AsyncMock())
     firestore_client = SimpleNamespace(
-        get_recent_history=lambda *_: [],
-        append_message=AsyncMock(),
+        get_recent_history=lambda *_ , **__: [],
+        append_message=Mock(),
     )
     context = AppContext(
         admin_id=100013433,
@@ -175,8 +168,6 @@ async def test_handle_message_answers_locally_for_arithmetic():
         history_max_messages=16,
         summary_trigger=20,
         history_ttl_days=7,
-        reminder_confidence_threshold=0.7,
-        tasks_config=None,
     )
 
     await handle_message(message, context)
@@ -202,8 +193,6 @@ async def test_handle_my_chat_member_ignores_non_member_status():
         history_max_messages=16,
         summary_trigger=20,
         history_ttl_days=7,
-        reminder_confidence_threshold=0.7,
-        tasks_config=None,
     )
 
     await handle_my_chat_member(event, context)

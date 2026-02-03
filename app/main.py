@@ -10,7 +10,6 @@ from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_applicati
 
 from app.config import load_config
 from app.handlers import AppContext, router
-from app.tasks import TasksConfig, handle_tasks_remind, handle_tasks_sweep
 from app.services.firestore_client import FirestoreClient
 from app.services.memory_store import MemoryStore
 from app.services.openai_client import OpenAIClient
@@ -52,14 +51,6 @@ def create_app() -> web.Application:
         firestore_client = FirestoreClient(project_id=config.gcp_project_id or "")
     else:
         firestore_client = MemoryStore()
-    tasks_config = TasksConfig(
-        project_id=config.tasks_project_id,
-        location=config.tasks_location,
-        queue=config.tasks_queue,
-        base_url=config.tasks_base,
-        token=config.tasks_token,
-    )
-
     async def build_context() -> AppContext:
         bot_user = await bot.get_me()
         return AppContext(
@@ -70,8 +61,6 @@ def create_app() -> web.Application:
             history_max_messages=config.history_max_messages,
             summary_trigger=config.summary_trigger,
             history_ttl_days=config.history_ttl_days,
-            reminder_confidence_threshold=config.reminder_confidence_threshold,
-            tasks_config=tasks_config,
         )
 
     async def middleware(handler, event, data):
@@ -85,7 +74,6 @@ def create_app() -> web.Application:
     app = web.Application()
     app["bot"] = bot
     app["firestore_client"] = firestore_client
-    app["tasks_config"] = tasks_config
     if config.webhook_base:
         webhook_url = build_webhook_url(config.webhook_base, config.webhook_path)
 
@@ -101,8 +89,6 @@ def create_app() -> web.Application:
     SimpleRequestHandler(dispatcher=dispatcher, bot=bot).register(
         app, path=config.webhook_path
     )
-    app.router.add_post("/tasks/remind", handle_tasks_remind)
-    app.router.add_post("/tasks/sweep", handle_tasks_sweep)
     setup_application(app, dispatcher, bot=bot)
     return app
 

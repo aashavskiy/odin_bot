@@ -5,13 +5,8 @@
 - Service URL: `https://odin-bot-j3hrwb34la-uc.a.run.app`
 - Bot token verified via `getMe`: `@AAshavskiyOdinBot` (id `7858967289`).
 
-## Context Summary (2026-02-02, reminders update)
-- Added natural-language reminders (no commands required).
-- Delivery uses Cloud Tasks + Firestore + Cloud Scheduler sweep (no missed reminders; late delivery allowed).
-- Cloud Tasks API enabled; queue `reminders` in `us-central1`.
-- Cloud Scheduler job `reminders-sweep` runs every minute.
-- Tasks endpoints protected with `X-Tasks-Token` (env `TASKS_TOKEN`).
-- When user text doesn't match expected reminder input (e.g., timezone), fall back to LLM first before asking again.
+## Context Summary (2026-02-03)
+- Removed reminder support and related Cloud Tasks/Scheduler integration.
 
 ## Current Issue
 - Telegram webhook keeps getting cleared (`getWebhookInfo` shows `url: ""`).
@@ -44,19 +39,6 @@
   - `app/main.py` (later commit)
 - Added OpenAI error fallback reply to user:
   - `app/handlers.py`
-- Added reminder system:
-  - NL reminder parsing via OpenAI (confidence threshold 0.7).
-  - Firestore collections: `users`, `pending_reminders`, `reminders`.
-  - Cloud Tasks endpoints: `/tasks/remind`, `/tasks/sweep`.
-  - Files: `app/handlers.py`, `app/reminders.py`, `app/tasks.py`,
-    `app/services/firestore_client.py`, `app/services/openai_client.py`,
-    `app/main.py`, `.github/workflows/deploy.yml`.
-- Added LLM-based timezone resolution fallback:
-  - If awaiting timezone and local parsing fails, call OpenAI to resolve IANA TZ.
-  - Files: `app/handlers.py`, `app/services/openai_client.py`.
-- Added LLM timezone inference for initial reminder requests when no saved TZ:
-  - If reminder text includes a location, resolve TZ before prompting the user.
-  - File: `app/handlers.py`.
 - Added fast-response guardrails:
   - Local arithmetic responses to bypass OpenAI latency.
   - Fast model response truncation + stop sequence.
@@ -66,18 +48,11 @@
 - Firestore database created (Native) in `us-central1`.
 - Service account granted `roles/datastore.user`.
 - Webhook was repeatedly re-set manually via Telegram API.
-- Enabled Cloud Tasks API and Cloud Scheduler API.
-- Created Cloud Tasks queue `reminders` in `us-central1`.
-- Created Cloud Scheduler job `reminders-sweep` (every minute).
-- Set Cloud Run env: `TASKS_LOCATION`, `TASKS_QUEUE`, `TASKS_BASE`, `TASKS_TOKEN`.
 
 ## Known Good Env Vars (Cloud Run)
 - `BOT_TOKEN`, `OPENAI_API_KEY`, `ADMIN_ID`, `GCP_PROJECT_ID`, `WEBHOOK_BASE`, `WEBHOOK_PATH`
 - `HISTORY_MAX_MESSAGES=16`, `SUMMARY_TRIGGER=20`, `HISTORY_TTL_DAYS=7`
 - `FIRESTORE_DISABLED=0` (now enabled)
-- Reminders:
-  - `TASKS_LOCATION=us-central1`, `TASKS_QUEUE=reminders`, `TASKS_BASE=https://odin-bot-j3hrwb34la-uc.a.run.app`
-  - `TASKS_TOKEN` (secret), `REMINDER_CONFIDENCE_THRESHOLD=0.7`
 
 ## Recent Deploy Failure and Fix
 - Deploy failed due to syntax error in `app/services/memory_store.py` (extra `]`).
@@ -101,7 +76,4 @@ gcloud logging read \
   "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"odin-bot\" AND httpRequest.requestUrl:\"/webhook\"" \
   --project odin-gatekeeper --limit 20 --format="table(timestamp, httpRequest.status)"
 
-# Reminders infra
-gcloud tasks queues describe reminders --project odin-gatekeeper --location us-central1
-gcloud scheduler jobs describe reminders-sweep --project odin-gatekeeper --location us-central1
 ```
