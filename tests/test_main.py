@@ -13,7 +13,8 @@ def test_build_webhook_url_strips_slash():
 @pytest.mark.asyncio
 async def test_on_startup_sets_webhook():
     bot = AsyncMock()
-    await on_startup(bot, "https://example.com/webhook")
+    await on_startup(bot, "https://example.com/webhook", 123)
     bot.set_webhook.assert_awaited_once_with(
         "https://example.com/webhook", drop_pending_updates=True
     )
+    bot.send_message.assert_awaited_once_with(123, "Odin bot запущен.")

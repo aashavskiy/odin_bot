@@ -15,13 +15,21 @@ from app.services.memory_store import MemoryStore
 from app.services.openai_client import OpenAIClient
 
 
-async def on_startup(bot: Bot, webhook_url: str) -> None:
+async def on_startup(bot: Bot, webhook_url: str, admin_id: int) -> None:
     try:
         await bot.set_webhook(webhook_url, drop_pending_updates=True)
     except TelegramRetryAfter as exc:
         logging.getLogger(__name__).warning(
             "set_webhook_rate_limited retry_after=%s", exc.retry_after
         )
+    try:
+        await bot.send_message(admin_id, "Odin bot запущен.")
+    except TelegramRetryAfter as exc:
+        logging.getLogger(__name__).warning(
+            "startup_notify_rate_limited retry_after=%s", exc.retry_after
+        )
+    except Exception:
+        logging.getLogger(__name__).exception("startup_notify_failed")
 
 
 async def on_shutdown(bot: Bot) -> None:
@@ -78,7 +86,7 @@ def create_app() -> web.Application:
         webhook_url = build_webhook_url(config.webhook_base, config.webhook_path)
 
         async def startup(_: web.Application) -> None:
-            await on_startup(bot, webhook_url)
+            await on_startup(bot, webhook_url, config.admin_id)
 
         async def shutdown(_: web.Application) -> None:
             await on_shutdown(bot)
