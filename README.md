@@ -9,6 +9,8 @@ Production-ready Telegram bot for a single administrator user.
 - **Conversation memory**: history stored in Firestore (or in-memory when disabled), with TTL-ready `expires_at`.
 - **History compaction**: keeps last N messages plus a rolling summary.
 - **Cloud Run ready**: webhook server on port `8080`.
+## Notes
+- Reminder support has been removed as of 2026-02-03.
 
 ## Architecture
 - `app/main.py` starts an aiohttp webhook server for aiogram.
